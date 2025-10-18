@@ -19,6 +19,9 @@
             const [activeTab, setActiveTab] = useState('workflow');
             const [expandedSections, setExpandedSections] = useState({});
             const [checklistProgress, setChecklistProgress] = useState({});
+            const [customLinks, setCustomLinks] = useState([]);
+            const [severityInput, setSeverityInput] = useState({ users: '', revenue: '', duration: '' });
+            const [severityResult, setSeverityResult] = useState(null);
 
             const toggleSection = (section) => {
                 setExpandedSections(prev => ({
@@ -35,19 +38,570 @@
                 }));
             };
 
+            const calculateSeverity = () => {
+                const users = parseInt(severityInput.users) || 0;
+                const revenue = parseInt(severityInput.revenue) || 0;
+                const duration = parseInt(severityInput.duration) || 0;
+
+                let severity = 'P4';
+                let description = 'Low Priority';
+                let color = 'text-green-600';
+                let bgColor = 'bg-green-50';
+                let borderColor = 'border-green-600';
+
+                if (users > 10000 || revenue > 100000 || duration > 240) {
+                    severity = 'P1';
+                    description = 'Critical - Immediate Action Required';
+                    color = 'text-red-600';
+                    bgColor = 'bg-red-50';
+                    borderColor = 'border-red-600';
+                } else if (users > 1000 || revenue > 10000 || duration > 60) {
+                    severity = 'P2';
+                    description = 'High Priority - Urgent Response';
+                    color = 'text-orange-600';
+                    bgColor = 'bg-orange-50';
+                    borderColor = 'border-orange-600';
+                } else if (users > 100 || revenue > 1000 || duration > 30) {
+                    severity = 'P3';
+                    description = 'Medium Priority - Timely Response';
+                    color = 'text-yellow-600';
+                    bgColor = 'bg-yellow-50';
+                    borderColor = 'border-yellow-600';
+                }
+
+                setSeverityResult({ severity, description, color, bgColor, borderColor });
+            };
+
+            const addCustomLink = () => {
+                const name = prompt('Enter link name:');
+                const url = prompt('Enter URL:');
+                if (name && url) {
+                    setCustomLinks([...customLinks, { name, url, color: 'bg-gray-600' }]);
+                }
+            };
+
+            const deleteCustomLink = (index) => {
+                if (window.confirm('Delete this link?')) {
+                    setCustomLinks(customLinks.filter((_, i) => i !== index));
+                }
+            };
+
+            const workflowSteps = [
+                {
+                    id: 1,
+                    title: 'Gather Initial Information',
+                    time: '0-2 min',
+                    items: [
+                        'Note incident number from ServiceNow',
+                        'Check priority/severity (P1, P2, P3, P4)',
+                        'Identify affected application name',
+                        'Record incident start time',
+                        'Understand user impact and symptoms'
+                    ]
+                },
+                {
+                    id: 2,
+                    title: 'Check ServiceNow Details',
+                    time: '2-5 min',
+                    items: [
+                        'Review short description and full description',
+                        'Check Configuration Item (CI) affected',
+                        'Look for related incidents',
+                        'Check for recent changes or deployments',
+                        'Review assignment group and escalation path'
+                    ]
+                },
+                {
+                    id: 3,
+                    title: 'Open Dynatrace Investigation',
+                    time: '5-10 min',
+                    items: [
+                        'Login to Dynatrace and navigate to Problems feed',
+                        'Filter by application name and incident timeframe',
+                        'Check for auto-detected problems',
+                        'Navigate to Services → Find your application',
+                        'Review failure rate and response time graphs'
+                    ]
+                },
+                {
+                    id: 4,
+                    title: 'Analyze Root Cause',
+                    time: '10-20 min',
+                    items: [
+                        'Click on Service Flow to see dependencies',
+                        'Identify bottlenecks or failing services',
+                        'Check distributed traces (PurePaths)',
+                        'Review error logs and stack traces',
+                        'Examine database statements if applicable',
+                        'Check host metrics (CPU, memory, disk)'
+                    ]
+                },
+                {
+                    id: 5,
+                    title: 'Correlate & Determine Impact',
+                    time: '20-30 min',
+                    items: [
+                        'Check Smartscape for impacted services',
+                        'Review deployment events around incident time',
+                        'Compare current metrics to baseline',
+                        'Determine blast radius (users/regions affected)',
+                        'Identify if other services are impacted'
+                    ]
+                },
+                {
+                    id: 6,
+                    title: 'Document & Update ServiceNow',
+                    time: 'Ongoing',
+                    items: [
+                        'Post investigation update in ServiceNow',
+                        'Include Dynatrace problem ID and link',
+                        'Document root cause findings',
+                        'List actions taken and next steps',
+                        'Update incident status and ETA'
+                    ]
+                }
+            ];
+
+            const dynatraceChecklist = {
+                'High Error Rate': [
+                    { id: 1, text: 'Navigate to Services → Your Application' },
+                    { id: 2, text: 'Click on Failure Rate spike in graph' },
+                    { id: 3, text: 'View Error Analysis section' },
+                    { id: 4, text: 'Group errors by Exception Type' },
+                    { id: 5, text: 'Click most frequent error for stack trace' },
+                    { id: 6, text: 'Check Root Cause Analysis from Dynatrace AI' },
+                    { id: 7, text: 'Copy error details to ServiceNow' }
+                ],
+                'Slow Performance': [
+                    { id: 1, text: 'Navigate to Services → Your Application' },
+                    { id: 2, text: 'Click on Response Time spike' },
+                    { id: 3, text: 'Select "Analyze Response Time Degradation"' },
+                    { id: 4, text: 'Review time breakdown (app, DB, network)' },
+                    { id: 5, text: 'Identify the bottleneck layer' },
+                    { id: 6, text: 'View slow transactions (PurePaths)' },
+                    { id: 7, text: 'If DB issue, check Database Statements' },
+                    { id: 8, text: 'Document response time comparison' }
+                ],
+                'Service Unavailable': [
+                    { id: 1, text: 'Check Problems feed for active alerts' },
+                    { id: 2, text: 'Click on the problem for Impact Analysis' },
+                    { id: 3, text: 'View Smartscape topology' },
+                    { id: 4, text: 'Identify down hosts or processes' },
+                    { id: 5, text: 'Check infrastructure metrics' },
+                    { id: 6, text: 'Review dependent services status' },
+                    { id: 7, text: 'Document impact radius' }
+                ],
+                'Database Issues': [
+                    { id: 1, text: 'Navigate to Databases section' },
+                    { id: 2, text: 'Find your database instance' },
+                    { id: 3, text: 'Check connection pool metrics' },
+                    { id: 4, text: 'Review slow database statements' },
+                    { id: 5, text: 'Sort by Time Consumed' },
+                    { id: 6, text: 'Click on slow query for execution plan' },
+                    { id: 7, text: 'Check for locks or deadlocks' },
+                    { id: 8, text: 'Copy query details to ServiceNow' }
+                ]
+            };
+
+            const defaultLinks = [
+                { name: 'ServiceNow Portal', url: 'https://your-instance.service-now.com', color: 'bg-blue-600' },
+                { name: 'Dynatrace Dashboard', url: 'https://your-tenant.dynatrace.com', color: 'bg-green-600' },
+                { name: 'Application Logs', url: '#', color: 'bg-purple-600' },
+                { name: 'Monitoring Dashboards', url: '#', color: 'bg-orange-600' },
+                { name: 'Runbook Repository', url: '#', color: 'bg-indigo-600' },
+                { name: 'On-Call Schedule', url: '#', color: 'bg-red-600' }
+            ];
+
+            const allLinks = [...defaultLinks, ...customLinks];
+
+            const escalationPaths = [
+                { severity: 'P1', response: '15 min', escalation: '30 min', team: 'On-Call Lead + Manager' },
+                { severity: 'P2', response: '30 min', escalation: '1 hour', team: 'On-Call Engineer' },
+                { severity: 'P3', response: '2 hours', escalation: '4 hours', team: 'Team Queue' },
+                { severity: 'P4', response: '1 day', escalation: 'Next business day', team: 'Team Queue' }
+            ];
+
+            const templateText = `Investigation Update - [HH:MM UTC]
+
+Dynatrace Analysis:
+- Problem ID: P-XXXXXX
+- Root Cause: [From Dynatrace AI analysis]
+- Affected Service: [Service name]
+- Error Rate: XX% (baseline: Y%)
+- Response Time: XXXms (baseline: YYms)
+- Failed Transactions: XXX count
+- Error Type: [Exception/Error name]
+- Impacted Users: [User count or %]
+- Dynatrace Link: [Full URL to problem]
+
+Current Status: [Investigating/Identified/Mitigating/Resolved]
+
+Actions Taken:
+1. [Action 1]
+2. [Action 2]
+
+Next Steps:
+- [Next action with ETA]
+
+ETA to Resolution: [Time estimate]`;
+
+            const renderWorkflowTab = () => (
+                <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6 rounded-lg">
+                        <h2 className="text-2xl font-bold mb-2">Incident Investigation Workflow</h2>
+                        <p className="text-blue-100">Follow these steps systematically to investigate and resolve incidents</p>
+                    </div>
+
+                    {workflowSteps.map((step) => {
+                        const isExpanded = expandedSections[`workflow-${step.id}`];
+                        
+                        return (
+                            <div key={step.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                                <button
+                                    onClick={() => toggleSection(`workflow-${step.id}`)}
+                                    className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="bg-blue-50 p-3 rounded-lg">
+                                            <span className="text-2xl">📋</span>
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-sm font-semibold text-gray-500">Step {step.id}</span>
+                                                <span className="text-xs bg-gray-200 px-2 py-1 rounded">{step.time}</span>
+                                            </div>
+                                            <h3 className="text-lg font-bold text-gray-800 mt-1">{step.title}</h3>
+                                        </div>
+                                    </div>
+                                    <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                                </button>
+                                
+                                {isExpanded && (
+                                    <div className="px-6 pb-6 border-t border-gray-100">
+                                        <ul className="space-y-3 mt-4">
+                                            {step.items.map((item, idx) => {
+                                                const itemKey = `workflow-${step.id}-${idx}`;
+                                                const isChecked = checklistProgress[itemKey];
+                                                
+                                                return (
+                                                    <li key={idx} className="flex items-start gap-3">
+                                                        <button
+                                                            onClick={() => toggleCheckItem(`workflow-${step.id}`, idx)}
+                                                            className="flex-shrink-0 mt-0.5"
+                                                        >
+                                                            <span className={`text-xl ${isChecked ? 'text-green-500' : 'text-gray-300'}`}>
+                                                                {isChecked ? '✓' : '○'}
+                                                            </span>
+                                                        </button>
+                                                        <span className={`text-gray-700 ${isChecked ? 'line-through text-gray-400' : ''}`}>
+                                                            {item}
+                                                        </span>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+
+            const renderDynatraceTab = () => (
+                <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-6 rounded-lg">
+                        <h2 className="text-2xl font-bold mb-2">Dynatrace Investigation Checklists</h2>
+                        <p className="text-green-100">Scenario-specific investigation steps for common incident types</p>
+                    </div>
+
+                    {Object.entries(dynatraceChecklist).map(([scenario, items]) => {
+                        const isExpanded = expandedSections[`dynatrace-${scenario}`];
+                        const completedCount = items.filter(item => checklistProgress[`dynatrace-${scenario}-${item.id}`]).length;
+                        const totalCount = items.length;
+                        const progressPercent = (completedCount / totalCount) * 100;
+                        
+                        return (
+                            <div key={scenario} className="bg-white rounded-lg shadow-md overflow-hidden">
+                                <button
+                                    onClick={() => toggleSection(`dynatrace-${scenario}`)}
+                                    className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+                                >
+                                    <div className="flex-grow">
+                                        <h3 className="text-lg font-bold text-gray-800 mb-2">{scenario}</h3>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-grow bg-gray-200 rounded-full h-2 max-w-xs">
+                                                <div
+                                                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${progressPercent}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-sm text-gray-600">{completedCount}/{totalCount}</span>
+                                        </div>
+                                    </div>
+                                    <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                                </button>
+                                
+                                {isExpanded && (
+                                    <div className="px-6 pb-6 border-t border-gray-100">
+                                        <ol className="space-y-3 mt-4">
+                                            {items.map((item) => {
+                                                const itemKey = `dynatrace-${scenario}-${item.id}`;
+                                                const isChecked = checklistProgress[itemKey];
+                                                
+                                                return (
+                                                    <li key={item.id} className="flex items-start gap-3">
+                                                        <button
+                                                            onClick={() => toggleCheckItem(`dynatrace-${scenario}`, item.id)}
+                                                            className="flex-shrink-0 mt-0.5"
+                                                        >
+                                                            <span className={`text-xl ${isChecked ? 'text-green-500' : 'text-gray-300'}`}>
+                                                                {isChecked ? '✓' : '○'}
+                                                            </span>
+                                                        </button>
+                                                        <div className="flex items-baseline gap-2">
+                                                            <span className="text-sm font-semibold text-gray-500">{item.id}.</span>
+                                                            <span className={`text-gray-700 ${isChecked ? 'line-through text-gray-400' : ''}`}>
+                                                                {item.text}
+                                                            </span>
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ol>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+
+            const renderToolsTab = () => (
+                <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-purple-500 to-pink-600 text-white p-6 rounded-lg">
+                        <h2 className="text-2xl font-bold mb-2">SRE Tools & Resources</h2>
+                        <p className="text-purple-100">Quick access links, templates, and calculators</p>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-800">Quick Access Links</h3>
+                            <button
+                                onClick={addCustomLink}
+                                className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors text-sm"
+                            >
+                                + Add Link
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {allLinks.map((link, index) => (
+                                <div key={index} className="relative group">
+                                    <a
+                                        href={link.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`${link.color} text-white p-4 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-between block`}
+                                    >
+                                        <span className="font-semibold">{link.name}</span>
+                                        <span>↗</span>
+                                    </a>
+                                    {index >= defaultLinks.length && (
+                                        <button
+                                            onClick={() => deleteCustomLink(index - defaultLinks.length)}
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-sm"
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">🧮 Severity Calculator</h3>
+                        <p className="text-gray-600 mb-4">Calculate incident severity based on impact metrics</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Affected Users</label>
+                                <input
+                                    type="number"
+                                    value={severityInput.users}
+                                    onChange={(e) => setSeverityInput({...severityInput, users: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Number of users"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Revenue Impact ($)</label>
+                                <input
+                                    type="number"
+                                    value={severityInput.revenue}
+                                    onChange={(e) => setSeverityInput({...severityInput, revenue: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Dollar amount"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Duration (minutes)</label>
+                                <input
+                                    type="number"
+                                    value={severityInput.duration}
+                                    onChange={(e) => setSeverityInput({...severityInput, duration: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Time in minutes"
+                                />
+                            </div>
+                        </div>
+                        
+                        <button
+                            onClick={calculateSeverity}
+                            className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 transition-colors mb-4"
+                        >
+                            Calculate Severity
+                        </button>
+
+                        {severityResult && (
+                            <div className={`p-4 rounded-lg border-2 ${severityResult.borderColor} ${severityResult.bgColor}`}>
+                                <div className="flex items-center gap-3">
+                                    <span className={`text-3xl font-bold ${severityResult.color}`}>{severityResult.severity}</span>
+                                    <div>
+                                        <div className={`font-semibold ${severityResult.color}`}>{severityResult.description}</div>
+                                        <div className="text-sm text-gray-600">Based on impact analysis</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">🔔 Escalation Paths</h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Severity</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Response Time</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Escalation Time</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Escalate To</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {escalationPaths.map((path, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3">
+                                                <span className={`font-bold ${
+                                                    path.severity === 'P1' ? 'text-red-600' :
+                                                    path.severity === 'P2' ? 'text-orange-600' :
+                                                    path.severity === 'P3' ? 'text-yellow-600' :
+                                                    'text-green-600'
+                                                }`}>{path.severity}</span>
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-700">{path.response}</td>
+                                            <td className="px-4 py-3 text-gray-700">{path.escalation}</td>
+                                            <td className="px-4 py-3 text-gray-700">{path.team}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">📝 ServiceNow Update Template</h3>
+                        <div className="bg-gray-50 p-4 rounded border border-gray-200 font-mono text-sm">
+                            <pre className="whitespace-pre-wrap text-gray-700">{templateText}</pre>
+                        </div>
+                        <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(templateText);
+                                alert('Template copied to clipboard!');
+                            }}
+                            className="mt-4 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors"
+                        >
+                            Copy Template
+                        </button>
+                    </div>
+
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                        <div className="flex items-start">
+                            <span className="text-yellow-600 text-xl mr-3">⚠️</span>
+                            <div>
+                                <h4 className="font-semibold text-yellow-800">Pro Tips</h4>
+                                <ul className="text-yellow-700 text-sm mt-2 space-y-1">
+                                    <li>• Always include Dynatrace problem links in ServiceNow updates</li>
+                                    <li>• Update ServiceNow every 30 minutes for P1/P2 incidents</li>
+                                    <li>• Use the severity calculator to validate incident priority</li>
+                                    <li>• Document all actions taken, even if they didn't resolve the issue</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+
             return (
                 <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
                     <div className="max-w-6xl mx-auto">
                         <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
                             <h1 className="text-4xl font-bold text-gray-800 mb-2">SRE Incident Investigation Guide</h1>
                             <p className="text-gray-600">Comprehensive guide for investigating and resolving incidents using ServiceNow and Dynatrace</p>
+                            
+                            <div className="mt-4 flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        if (window.confirm('Clear all checklist progress?')) {
+                                            setChecklistProgress({});
+                                        }
+                                    }}
+                                    className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 transition-colors"
+                                >
+                                    Reset Progress
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow-lg p-8">
-                            <div className="text-center">
-                                <h2 className="text-2xl font-bold text-gray-800 mb-4">🚀 App Loading Successfully!</h2>
-                                <p className="text-gray-600">If you see this, React is working properly.</p>
-                                <p className="text-sm text-gray-500 mt-2">The full app will load momentarily...</p>
+                        <div className="bg-white rounded-lg shadow-lg mb-6">
+                            <div className="flex border-b border-gray-200">
+                                <button
+                                    onClick={() => setActiveTab('workflow')}
+                                    className={`flex-1 px-6 py-4 font-semibold transition-colors ${
+                                        activeTab === 'workflow'
+                                            ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                                            : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    Investigation Workflow
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('dynatrace')}
+                                    className={`flex-1 px-6 py-4 font-semibold transition-colors ${
+                                        activeTab === 'dynatrace'
+                                            ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
+                                            : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    Dynatrace Checklists
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('tools')}
+                                    className={`flex-1 px-6 py-4 font-semibold transition-colors ${
+                                        activeTab === 'tools'
+                                            ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
+                                            : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    Tools & Resources
+                                </button>
+                            </div>
+
+                            <div className="p-6">
+                                {activeTab === 'workflow' && renderWorkflowTab()}
+                                {activeTab === 'dynatrace' && renderDynatraceTab()}
+                                {activeTab === 'tools' && renderToolsTab()}
                             </div>
                         </div>
                     </div>
